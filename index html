@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BazaarPro — Store</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { darkMode: 'class', theme: { extend: {
+  colors: { primary: { DEFAULT: '#6366f1', dark: '#4f46e5' } },
+  boxShadow: {
+    clay: '9px 9px 16px #cbd5e1, -9px -9px 16px #ffffff',
+    claydk: '9px 9px 16px #090d16, -9px -9px 16px #15213e',
+    claysm: '4px 4px 8px #cbd5e1, -4px -4px 8px #ffffff',
+    claysmdk: '4px 4px 8px #090d16, -4px -4px 8px #15213e',
+    inset: 'inset 4px 4px 8px #cbd5e1, inset -4px -4px 8px #ffffff',
+    insetdk: 'inset 4px 4px 8px #090d16, inset -4px -4px 8px #15213e'
+  }
+}}};
+</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { font-family: Inter, sans-serif; }
+  .no-sb::-webkit-scrollbar { display: none; }
+  .no-sb { scrollbar-width: none; }
+</style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen pb-24 md:pb-8">
+
+<header class="sticky top-0 z-40 bg-slate-100/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3 md:gap-5">
+    <button onclick="go('home')" class="font-bold text-xl text-primary whitespace-nowrap">
+      <i class="fa-solid fa-bag-shopping"></i> Bazaar<span class="text-slate-900 dark:text-white">Pro</span>
+    </button>
+    <input id="q" placeholder="Search products, brands..."
+      onkeydown="if(event.key==='Enter')go('listing',{cat:'All',q:this.value})"
+      class="flex-1 min-w-0 bg-slate-100 dark:bg-slate-900 shadow-inset dark:shadow-insetdk rounded-2xl px-4 py-2.5 text-sm focus:outline-none">
+    <button onclick="S.dark=!S.dark;render()" class="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-900 shadow-claysm dark:shadow-claysmdk">
+      <i id="themeIcon" class="fa-solid fa-moon"></i>
+    </button>
+    <button onclick="go('wishlist')" class="relative p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-900 shadow-claysm dark:shadow-claysmdk">
+      <i class="fa-solid fa-heart"></i>
+      <span id="wishBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-5 h-5 rounded-full items-center justify-center font-bold">0</span>
+    </button>
+    <button onclick="go('cart')" class="relative p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-900 shadow-claysm dark:shadow-claysmdk">
+      <i class="fa-solid fa-cart-shopping"></i>
+      <span id="cartBadge" class="absolute -top-1 -right-1 bg-primary text-white text-[10px] w-5 h-5 rounded-full items-center justify-center font-bold">0</span>
+    </button>
+    <a href="bazaarpro-admin.html" class="hidden md:inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-primary hover:bg-primary-dark text-white text-sm font-semibold">
+      <i class="fa-solid fa-user-shield"></i> Admin
+    </a>
+  </div>
+</header>
+
+<main id="app" class="max-w-7xl mx-auto px-4 py-6 space-y-8"></main>
+
+<nav class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-100 dark:bg-slate-900 shadow-clay dark:shadow-claydk rounded-t-3xl flex justify-around py-3">
+  <button data-nav="home" onclick="go('home')" class="px-4 text-lg"><i class="fa-solid fa-house"></i></button>
+  <button data-nav="categories" onclick="go('categories')" class="px-4 text-lg"><i class="fa-solid fa-table-cells-large"></i></button>
+  <button data-nav="cart" onclick="go('cart')" class="px-4 text-lg"><i class="fa-solid fa-cart-shopping"></i></button>
+  <button data-nav="orders" onclick="go('orders')" class="px-4 text-lg"><i class="fa-solid fa-box"></i></button>
+  <button data-nav="profile" onclick="go('profile')" class="px-4 text-lg"><i class="fa-solid fa-user"></i></button>
+</nav>
+
+<div id="toast" class="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm px-5 py-3 rounded-2xl shadow-lg opacity-0 transition-opacity z-50 pointer-events-none"></div>
+
+<script>
+const KEY = 'bazaarpro_v1';
+const COUPONS = { BAZAAR20: 0.2, FESTIVE10: 0.1 };
+const CATS = [['Electronics','fa-laptop'],['Fashion','fa-shirt'],['Home Appliances','fa-couch'],['Beauty','fa-spray-can-sparkles']];
+const SEED = [
+  {id:1,name:'Smart LED TV 43"',brand:'Samsung',cat:'Electronics',price:24990,mrp:39990,rating:4.5,stock:12,icon:'fa-tv',trend:1,best:1},
+  {id:2,name:'Wireless Earbuds Pro',brand:'boAt',cat:'Electronics',price:1799,mrp:4990,rating:4.3,stock:40,icon:'fa-headphones',trend:1,best:0},
+  {id:3,name:'Men Cotton Kurta',brand:'Fabindia',cat:'Fashion',price:899,mrp:1999,rating:4.2,stock:25,icon:'fa-shirt',trend:0,best:1},
+  {id:4,name:'Women Running Shoes',brand:'Puma',cat:'Fashion',price:2499,mrp:4499,rating:4.4,stock:18,icon:'fa-shoe-prints',trend:1,best:1},
+  {id:5,name:'Air Fryer 4L',brand:'Philips',cat:'Home Appliances',price:5499,mrp:8995,rating:4.6,stock:9,icon:'fa-fire-burner',trend:0,best:1},
+  {id:6,name:'Mixer Grinder 750W',brand:'Bajaj',cat:'Home Appliances',price:2199,mrp:3299,rating:4.1,stock:30,icon:'fa-blender',trend:1,best:0},
+  {id:7,name:'Vitamin C Face Serum',brand:'Minimalist',cat:'Beauty',price:499,mrp:799,rating:4.5,stock:60,icon:'fa-spray-can-sparkles',trend:0,best:1},
+  {id:8,name:'Smart Watch Series 5',brand:'Noise',cat:'Electronics',price:2999,mrp:5999,rating:4.0,stock:22,icon:'fa-watch',trend:1,best:0}
+];
+
+const CARD = 'bg-slate-100 dark:bg-slate-900 shadow-clay dark:shadow-claydk rounded-3xl';
+const CLAYSM = 'bg-slate-100 dark:bg-slate-900 shadow-claysm dark:shadow-claysmdk rounded-2xl';
+const INSET = 'bg-slate-100 dark:bg-slate-900 shadow-inset dark:shadow-insetdk rounded-2xl';
+const BTN = 'bg-primary hover:bg-primary-dark text-white font-semibold rounded-2xl px-4 py-2.5 transition disabled:opacity-40';
+const GRID = 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4';
+
+const $ = s => document.querySelector(s);
+const inr = n => '₹' + Number(n).toLocaleString('en-IN');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(KEY));
+    if (d && Array.isArray(d.products)) return { products: d.products.filter(p => p.status !== 'draft'), cart: d.cart || [], wish: d.wish || [], orders: d.orders || [] };
+  } catch (e) {}
+  return { products: JSON.parse(JSON.stringify(SEED)), cart: [], wish: [], orders: [] };
+}
+function persist() {
+  try {
+    const cur = JSON.parse(localStorage.getItem(KEY) || '{}');
+    cur.products = (cur.products || []).map(p => { const s = S.products.find(x => x.id === p.id); return s ? { ...p, stock: s.stock } : p; });
+    cur.cart = S.cart; cur.wish = S.wish; cur.orders = S.orders;
+    localStorage.setItem(KEY, JSON.stringify(cur));
+  } catch (e) {}
+}
+
+let S = { ...load(), view: 'home', arg: null, filter: { cat: 'All', q: '', sort: '' }, dark: false, coupon: null };
+
+function totals() {
+  const items = S.cart.map(c => ({ p: S.products.find(x => x.id === c.id), q: c.q })).filter(i => i.p);
+  const sub = items.reduce((s, i) => s + i.p.price * i.q, 0);
+  const cp = S.coupon ? findCoupon(S.coupon) : null;
+  const disc = cp && sub >= (cp.min || 0) ? (cp.type === 'flat' ? Math.min(cp.value, sub) : Math.round(sub * cp.value / 100)) : 0;
+  return { items, sub, disc, total: sub - disc };
+}
+
+function findCoupon(code) {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const list = JSON.parse(localStorage.getItem(KEY) || '{}').coupons || [];
+    return list.find(c => c.code === code && c.active && (!c.expiry || c.expiry >= today)) || null;
+  } catch (e) { return null; }
+}
+
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.style.opacity = 1;
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.style.opacity = 0, 2000);
+}
+
+function empty(msg, icon) {
+  return `<div class="${CARD} p-10 text-center space-y-3">
+    <i class="fa-solid ${icon} text-4xl text-primary"></i>
+    <p class="font-semibold">${msg}</p>
+    <button onclick="go('listing',{cat:'All',q:''})" class="${BTN} px-6">Shop Now</button></div>`;
+}
+
+function fieldInput(name, label, attr = '') {
+  return `<div><label class="block text-xs font-semibold uppercase mb-1">${label}</label>
+    <input name="${name}" required ${attr} class="${INSET} w-full px-4 py-3 text-sm focus:outline-none"></div>`;
+}
+
+function card(p) {
+  const off = Math.round((1 - p.price / p.mrp) * 100);
+  const w = S.wish.includes(p.id);
+  return `<div class="${CARD} p-4 flex flex-col">
+    <button onclick="go('detail',${p.id})" class="h-28 w-full rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-4xl overflow-hidden">${p.imgs && p.imgs[0] ? `<img src="${p.imgs[0]}" class="w-full h-full object-cover">` : `<i class="fa-solid ${p.icon}"></i>`}</button>
+    <p class="text-xs text-slate-500 mt-3">${esc(p.brand)}</p>
+    <p class="font-semibold text-sm leading-snug line-clamp-2 min-h-[2.5rem]">${esc(p.name)}</p>
+    <div class="flex items-baseline flex-wrap gap-2 mt-1">
+      <span class="font-bold">${inr(p.price)}</span>
+      <span class="text-xs line-through text-slate-400">${inr(p.mrp)}</span>
+      <span class="text-xs text-green-600 font-semibold">${off}% off</span></div>
+    <div class="flex gap-2 mt-3">
+      <button onclick="addCart(${p.id})" ${p.stock < 1 ? 'disabled' : ''} class="${BTN} flex-1 text-sm">${p.stock < 1 ? 'Out of stock' : 'Add to cart'}</button>
+      <button onclick="toggleWish(${p.id})" class="${CLAYSM} px-3 ${w ? 'text-red-500' : 'text-slate-400'}"><i class="fa-${w ? 'solid' : 'regular'} fa-heart"></i></button>
+    </div></div>`;
+}
+
+const catTile = ([n, i]) => `<button onclick="go('listing',{cat:'${n}',q:''})" class="${CLAYSM} min-w-[120px] p-4 text-center">
+  <i class="fa-solid ${i} text-primary text-2xl"></i><p class="text-xs font-semibold mt-2">${n}</p></button>`;
+
+const V = {
+  home: () => `
+    <div class="relative rounded-3xl overflow-hidden bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white p-8 md:p-12 shadow-clay">
+      <span class="bg-white/20 text-xs px-3 py-1 rounded-full font-semibold uppercase">Festival Sale</span>
+      <h1 class="text-3xl md:text-5xl font-extrabold mt-3">Festive Season Dhamaka</h1>
+      <p class="mt-2 mb-6 text-white/90">Up to 60% OFF on Electronics, Fashion & Home Appliances.</p>
+      <button onclick="go('listing',{cat:'All',q:''})" class="bg-white text-primary font-bold px-6 py-3 rounded-2xl">Shop Now</button>
+    </div>
+    <section>
+      <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold">Categories / श्रेणियाँ</h2>
+        <button onclick="go('categories')" class="text-primary text-sm font-semibold">See All</button></div>
+      <div class="flex gap-4 overflow-x-auto no-sb pb-2">${CATS.map(catTile).join('')}</div>
+    </section>
+    <section><h2 class="text-xl font-bold mb-4">Trending / ट्रेंडिंग</h2>
+      <div class="${GRID}">${S.products.filter(p => p.trend).map(card).join('')}</div></section>
+    <section><h2 class="text-xl font-bold mb-4">Best Sellers / बेस्ट सेलर</h2>
+      <div class="${GRID}">${S.products.filter(p => p.best).map(card).join('')}</div></section>`,
+
+  categories: () => `<h2 class="text-2xl font-bold mb-4">All Categories</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">${CATS.map(([n, i]) => `
+      <button onclick="go('listing',{cat:'${n}',q:''})" class="${CARD} p-8 text-center hover:scale-[1.02] transition">
+        <i class="fa-solid ${i} text-4xl text-primary"></i><p class="font-semibold mt-3">${n}</p></button>`).join('')}</div>`,
+
+  listing: () => {
+    const f = S.filter;
+    let list = S.products.filter(p => (f.cat === 'All' || p.cat === f.cat) &&
+      (!f.q || (p.name + ' ' + p.brand + ' ' + p.cat).toLowerCase().includes(f.q.toLowerCase())));
+    if (f.sort === 'low') list.sort((a, b) => a.price - b.price);
+    if (f.sort === 'high') list.sort((a, b) => b.price - a.price);
+    if (f.sort === 'rating') list.sort((a, b) => b.rating - a.rating);
+    return `<div class="${CARD} p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <h2 class="text-xl font-bold">${esc(f.cat)}${f.q ? ` — "${esc(f.q)}"` : ''} <span class="text-sm text-slate-500">(${list.length})</span></h2>
+      <select onchange="S.filter.sort=this.value;render()" class="${INSET} px-4 py-2 text-sm">
+        ${[['', 'Featured'], ['low', 'Price: Low to High'], ['high', 'Price: High to Low'], ['rating', 'Top Rated']]
+          .map(([v, l]) => `<option value="${v}" ${f.sort === v ? 'selected' : ''}>${l}</option>`).join('')}
+      </select></div>
+      <div class="${GRID}">${list.map(card).join('') || '<p class="col-span-full text-center text-slate-500 py-10">Koi product nahi mila</p>'}</div>`;
+  },
+
+  detail: () => {
+    const p = S.products.find(x => x.id === S.arg);
+    if (!p) return empty('Product nahi mila', 'fa-circle-question');
+    const off = Math.round((1 - p.price / p.mrp) * 100);
+    const w = S.wish.includes(p.id);
+    return `<button onclick="history.length&&go('listing',{cat:'All',q:''})" class="text-primary text-sm font-semibold"><i class="fa-solid fa-arrow-left"></i> Back</button>
+      <div class="${CARD} p-6 md:p-10 grid md:grid-cols-2 gap-8">
+        <div class="rounded-3xl bg-primary/10 text-primary flex items-center justify-center h-64 text-8xl overflow-hidden">${p.imgs && p.imgs[0] ? `<img src="${p.imgs[0]}" class="w-full h-full object-cover">` : `<i class="fa-solid ${p.icon}"></i>`}</div>
+        <div class="space-y-4">
+          <p class="text-sm text-slate-500">${esc(p.brand)} · ${p.cat}</p>
+          <h1 class="text-2xl font-bold">${esc(p.name)}</h1>
+          <p class="text-sm"><i class="fa-solid fa-star text-yellow-400"></i> ${p.rating} rating</p>
+          <div class="flex items-baseline gap-3"><span class="text-3xl font-extrabold">${inr(p.price)}</span>
+            <span class="line-through text-slate-400">${inr(p.mrp)}</span><span class="text-green-600 font-semibold">${off}% off</span></div>
+          <p class="text-sm font-medium ${p.stock < 5 ? 'text-red-500' : 'text-green-600'}">${p.stock < 1 ? 'Out of stock' : p.stock < 5 ? 'Sirf ' + p.stock + ' bache hain!' : 'In stock'}</p>
+          <div class="flex gap-3">
+            <button onclick="addCart(${p.id})" ${p.stock < 1 ? 'disabled' : ''} class="${BTN} flex-1 py-3.5">Add to Cart</button>
+            <button onclick="toggleWish(${p.id})" class="${CLAYSM} px-5"><i class="fa-${w ? 'solid text-red-500' : 'regular'} fa-heart"></i></button>
+          </div></div></div>`;
+  },
+
+  cart: () => {
+    const t = totals();
+    if (!t.items.length) return empty('Aapka cart khali hai', 'fa-cart-shopping');
+    return `<h2 class="text-2xl font-bold">Shopping Cart (${S.cart.reduce((s, c) => s + c.q, 0)})</h2>
+      <div class="grid lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-4">${t.items.map(i => `
+          <div class="${CARD} p-4 flex gap-4 items-center">
+            <div class="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-2xl shrink-0"><i class="fa-solid ${i.p.icon}"></i></div>
+            <div class="flex-1 min-w-0"><p class="font-semibold text-sm truncate">${esc(i.p.name)}</p><p class="text-primary font-bold">${inr(i.p.price)}</p></div>
+            <div class="flex items-center gap-2">
+              <button onclick="qty(${i.p.id},-1)" class="${CLAYSM} w-8 h-8">−</button>
+              <span class="w-6 text-center">${i.q}</span>
+              <button onclick="qty(${i.p.id},1)" class="${CLAYSM} w-8 h-8">+</button></div>
+            <button onclick="removeCart(${i.p.id})" class="text-red-500 p-2"><i class="fa-solid fa-trash"></i></button>
+          </div>`).join('')}</div>
+        <div class="${CARD} p-6 space-y-3 h-fit">
+          <h3 class="font-bold text-lg">Order Summary</h3>
+          <div class="flex justify-between text-sm"><span>Subtotal</span><span>${inr(t.sub)}</span></div>
+          <div class="flex justify-between text-sm"><span>Discount ${S.coupon ? '(' + S.coupon + ')' : ''}</span><span class="text-green-600">-${inr(t.disc)}</span></div>
+          <div class="flex justify-between text-sm"><span>Delivery</span><span class="text-green-600">FREE</span></div>
+          <div class="flex justify-between font-bold text-lg border-t border-slate-200 dark:border-slate-800 pt-3"><span>Total</span><span>${inr(t.total)}</span></div>
+          <div class="flex gap-2">
+            <input id="coupon" value="${S.coupon || ''}" placeholder="BAZAAR20 / FESTIVE10" class="${INSET} flex-1 min-w-0 px-4 py-2 text-sm focus:outline-none">
+            <button onclick="applyCoupon()" class="${BTN} px-4 text-sm">Apply</button></div>
+          <button onclick="go('checkout')" class="${BTN} w-full py-3.5">Proceed to Checkout</button>
+        </div></div>`;
+  },
+
+  checkout: () => {
+    const t = totals();
+    return `<div class="max-w-2xl mx-auto ${CARD} p-6 md:p-8 space-y-6">
+      <h2 class="text-2xl font-bold">Checkout & Delivery Address</h2>
+      <form onsubmit="placeOrder(event)" class="space-y-4">
+        <div class="grid sm:grid-cols-2 gap-4">${fieldInput('name', 'Full Name')}${fieldInput('phone', 'Mobile Number', 'type="tel" pattern="[0-9]{10}" title="10 digit number"')}</div>
+        ${fieldInput('addr', 'House / Flat No., Street')}
+        <div class="grid grid-cols-3 gap-4">${fieldInput('city', 'City')}${fieldInput('state', 'State')}${fieldInput('pin', 'PIN Code', 'pattern="[0-9]{6}" title="6 digit PIN"')}</div>
+        <div class="grid grid-cols-2 gap-4 pt-2">
+          <label class="${CLAYSM} p-4 flex items-center gap-3 cursor-pointer"><input type="radio" name="pay" value="COD" checked>
+            <span class="text-sm font-medium"><i class="fa-solid fa-money-bill-wave text-green-500 mr-2"></i>Cash on Delivery</span></label>
+          <label class="${CLAYSM} p-4 flex items-center gap-3 cursor-pointer"><input type="radio" name="pay" value="Online">
+            <span class="text-sm font-medium"><i class="fa-solid fa-qrcode text-primary mr-2"></i>UPI / Card</span></label>
+        </div>
+        <button class="${BTN} w-full py-4 text-base">Place Order · ${inr(t.total)}</button>
+      </form></div>`;
+  },
+
+  orders: () => `<h2 class="text-2xl font-bold">My Orders / मेरे ऑर्डर्स</h2>
+    <div class="space-y-4">${S.orders.map(o => `
+      <div class="${CARD} p-5 space-y-2">
+        <div class="flex justify-between items-center text-sm"><span class="font-bold">#${o.id}</span>
+          <span class="px-3 py-1 rounded-full bg-primary/15 text-primary text-xs font-semibold">${o.status}</span></div>
+        <p class="text-xs text-slate-500">${o.date} · ${o.pay === 'COD' ? 'Cash on Delivery' : 'Online'}</p>
+        <p class="text-sm">${o.items.map(i => esc(i.name) + ' × ' + i.q).join(', ')}</p>
+        <p class="font-bold">${inr(o.total)}</p></div>`).join('') || empty('Abhi koi order nahi hai', 'fa-box')}</div>`,
+
+  wishlist: () => {
+    const list = S.products.filter(p => S.wish.includes(p.id));
+    return `<h2 class="text-2xl font-bold">My Wishlist / विशलिस्ट</h2>
+      <div class="${GRID}">${list.map(card).join('') || '<p class="col-span-full text-center text-slate-500 py-10">Wishlist khali hai</p>'}</div>`;
+  },
+
+  profile: () => `<div class="max-w-xl mx-auto ${CARD} p-8 space-y-6">
+    <div class="flex items-center gap-4">
+      <div class="w-16 h-16 rounded-full bg-primary/20 text-primary flex items-center justify-center text-2xl"><i class="fa-solid fa-user"></i></div>
+      <div><h3 class="text-xl font-bold">Rahul Sharma</h3><p class="text-sm text-slate-500">rahul.sharma@example.com</p></div></div>
+    ${[['orders', 'fa-box', 'My Orders'], ['wishlist', 'fa-heart', 'Wishlist']].map(([v, i, l]) => `
+      <button onclick="go('${v}')" class="${CLAYSM} w-full flex justify-between p-4 text-sm font-medium">
+   
